@@ -1,0 +1,74 @@
+Multi-Agent Research Assistant/System
+
+_______________________________________________________________________________________________________________________________________________________________________________
+
+Overview:
+
+- A fully autonomous AI system that thinks, searches, reads and writes on its own.
+- Instead of a single AI answering the questions from memory, it uses a team of multiple agents that specialize in different areas to collaborate and provide more accurate and comprehensive answers.
+- The Search Agent goes out on the live web to find the most relevant and up-to-date information.
+- The Reading Agent processes and understands the information gathered by the Search Agent, extracting key insights and summarizing them for the user.
+- The Writing Agent takes the insights from the Reading Agent and generates well-structured, coherent, and contextually appropriate responses or documents based on the user's needs.
+- Finally, the Critic Agent reviews the output from the Writing Agent, ensuring accuracy, clarity, and relevance before presenting it to the user.
+
+Every single agent is powered by a LLM model, connected through Langchain's LCEL (LangChain Execution Layer) pipeline, and orchestrated through a shared memory system that allows them to communicate and collaborate effectively. This architecture enables the Multi-Agent Research Assistant to provide high-quality, reliable, and contextually aware responses to complex queries, making it a powerful tool for research and information gathering.
+
+This is not a chatbot or a simple question-answering system; it is a sophisticated research assistant capable of handling complex tasks that require deep understanding, critical thinking, and synthesis of information from multiple sources.
+
+
+_______________________________________________________________________________________________________________________________________________________________________________
+
+Architecture:
+
+You give a research question/topic ------> Search Agent [Agent Executor + web search tool] -<------- Fetch real time data ---------> (Tool 1 - Tavily API [Live Web Results])
+                                                            |
+                                                            |
+                                                            v
+                                             state['search results'] saved     [Shared Memory System - links fetched from previous step]
+                                                            |
+                                                            |
+                                                            v
+                                           Reader Agent [Agent Executor + scrape_url_tool] ----------- Fetch more info ------------> (Tool 2 - BeautifulSoup [Web Scraping])
+                                                            |
+                                                            |
+                                                            v
+                                             state['scraped data'] saved     [Shared Memory System - relevantdata fetched from scraping links]
+                                                            |
+                                                            |
+                                            ---------------------------------  
+                                            |                               |
+                                            v                               v
+                                        Writer Chain                    Critic Chain
+                                            |                               |
+                                            --------------------------------
+                                                            |
+                                                            v
+                                                       Final Output
+
+_______________________________________________________________________________________________________________________________________________________________________________
+
+Steps:
+
+1. create a virtual environment and a .env file with tavily and openai api keys
+2. create a requirements.txt file with the necessary dependencies (e.g., langchain, beautifulsoup4, requests, etc.)
+3. create tools.py using @tool decorator - web_search tool (Tavily API) and scrape_url (BeautifulSoup)
+4. create agents.py 
+    - Search agent using create_agent + AgentExecutor which will use web_search tool
+    - Reader agent using create_agent + AgentExecutor which will use scrape_url tool
+    - Writer Chain using modern LCEL pipe syntax [prompt | llm | StrOutputParser()] - takes full research and writes a full report
+    - Critic Chain using LCEL pipe which reads the report and gives a score + feedback on the quality of the report
+5. create pipeline.py
+    - supervisor, function run_research_pipeline(), which calls all the 4 agents and chains in the correct order and saves the intermediate output from each in a shared state dictionary
+    - Agent uses message-based inpuit/output to communicate with each other and pass the data along the pipeline (
+        {
+            "messages" : [
+                HumanMessage(content = "What is the capital of France? "),
+                AIMeessage(content = "", tool_calls = [{"name": "web_search", ...}]),
+                ToolMessage(content = "Title: Capital of France - Wikipedia....."),
+                AIMessage(content = "The capital of France is Paris.")
+            ]
+        }
+        )
+    - Read response from results['messages'][-1]['content']
+    - At the end of each step, the ouput is printed in terminal so that the user can see the progress of the research pipeline and exactly what each agent is doing.
+6. Run and test [python pipeline.py in the terminal]
